@@ -72,18 +72,12 @@ export function SEO({
 
     const baseOrg = {
       '@context': 'https://schema.org',
-      '@type': 'MotorcycleDealer',
+      '@type': 'Organization',
       name: 'CHAND MOTORS',
       alternateName: 'CHAND',
       url: origin,
       telephone: '+92-321-7293026',
       areaServed: 'Pakistan',
-      address: {
-        '@type': 'PostalAddress',
-        streetAddress: 'Plot 14-C, Main Boulevard, Gulberg III',
-        addressLocality: 'Lahore',
-        addressCountry: 'PK',
-      },
     };
 
     const schemas = structuredData

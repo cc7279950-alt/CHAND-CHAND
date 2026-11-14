@@ -16,6 +16,27 @@ import { buildWhatsAppUrl, DEFAULT_WHATSAPP_DISPLAY, formatPkr } from '../lib/fo
 import { useCatalog } from '../context/CatalogContext.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 
+const VERIFIED_FIELD_LABELS: Record<string, string> = {
+  cc: 'engine capacity',
+  engineCapacityLabel: 'engine capacity label',
+  engineType: 'engine type',
+  horsepower: 'horsepower',
+  torque: 'torque',
+  transmission: 'transmission',
+  fuelTankCapacity: 'fuel tank',
+  mileage: 'mileage',
+  topSpeed: 'top speed',
+  brakingSystem: 'braking system',
+  frontSuspension: 'front suspension',
+  rearSuspension: 'rear suspension',
+  dimensions: 'dimensions',
+  weight: 'weight',
+  colors: 'colors',
+  estimatedPricePkr: 'price',
+  keyFeatures: 'key features',
+  description: 'description',
+};
+
 export function BikeDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { compareSlugs, toggleCompare, siteContent } = useCatalog();
@@ -31,7 +52,7 @@ export function BikeDetailPage() {
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [city, setCity] = useState('Lahore');
+  const [city, setCity] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [inquirySuccess, setInquirySuccess] = useState<string | null>(null);
@@ -42,7 +63,7 @@ export function BikeDetailPage() {
       setCustomerName((prev) => prev || user.name);
       setPhone((prev) => prev || user.phone);
       setEmail((prev) => prev || user.email);
-      setCity((prev) => prev || user.city || 'Lahore');
+      setCity((prev) => prev || user.city || '');
     }
   }, [user]);
 
@@ -112,7 +133,7 @@ export function BikeDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not submit inquiry.');
       setInquirySuccess(
-        `Inquiry #${data.inquiry.id} received for ${bike.name}. Our Lahore showroom desk will reach out shortly, or message us immediately on WhatsApp ${DEFAULT_WHATSAPP_DISPLAY}.`,
+        `Inquiry #${data.inquiry.id} received for ${bike.name}. Message us on WhatsApp ${DEFAULT_WHATSAPP_DISPLAY} for a prompt response.`,
       );
     } catch (err) {
       setInquiryError(err instanceof Error ? err.message : 'Submission failed.');
@@ -152,6 +173,11 @@ export function BikeDetailPage() {
   const gallery = bike.galleryUrls.length > 0 ? bike.galleryUrls : [bike.imageUrl];
   const isCompared = compareSlugs.includes(bike.slug);
   const isSaved = user?.savedBikeIds.includes(bike.id) ?? false;
+  const verifiedFields = new Set(bike.verifiedFields ?? []);
+  const verificationLabel = 'Not verified from a listed primary source';
+  const bikeDescription = verifiedFields.has('description')
+    ? bike.description
+    : `${bike.name} is listed in the CHAND MOTORS catalog. Specifications and market availability should be confirmed with the manufacturer or an authorized local dealer before purchase.`;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const productSchema = [
@@ -161,17 +187,7 @@ export function BikeDetailPage() {
       name: bike.name,
       brand: { '@type': 'Brand', name: bike.brand },
       category: bike.category,
-      description: bike.description,
-      offers: {
-        '@type': 'Offer',
-        priceCurrency: 'PKR',
-        price: bike.estimatedPricePkr,
-        availability:
-          bike.availability === 'In Stock'
-            ? 'https://schema.org/InStock'
-            : 'https://schema.org/PreOrder',
-        url: `${origin}/motorcycles/${bike.slug}`,
-      },
+      description: bikeDescription,
     },
     {
       '@context': 'https://schema.org',
@@ -191,26 +207,26 @@ export function BikeDetailPage() {
   ];
 
   const specRows = [
-    { label: 'Engine Capacity', value: bike.engineCapacityLabel },
-    { label: 'Engine Type', value: bike.engineType },
-    { label: 'Horsepower', value: bike.horsepower },
-    { label: 'Torque', value: bike.torque },
-    { label: 'Transmission', value: bike.transmission },
-    { label: 'Fuel Tank / Battery', value: bike.fuelTankCapacity },
-    { label: 'Mileage / Range', value: bike.mileage },
-    { label: 'Top Speed', value: bike.topSpeed },
-    { label: 'Braking System', value: bike.brakingSystem },
-    { label: 'Front Suspension', value: bike.frontSuspension },
-    { label: 'Rear Suspension', value: bike.rearSuspension },
-    { label: 'Dimensions (L × W × H)', value: bike.dimensions },
-    { label: 'Weight', value: bike.weight },
+    { field: 'cc', label: 'Engine Capacity', value: bike.engineCapacityLabel },
+    { field: 'engineType', label: 'Engine Type', value: bike.engineType },
+    { field: 'horsepower', label: 'Horsepower', value: bike.horsepower },
+    { field: 'torque', label: 'Torque', value: bike.torque },
+    { field: 'transmission', label: 'Transmission', value: bike.transmission },
+    { field: 'fuelTankCapacity', label: 'Fuel Tank / Battery', value: bike.fuelTankCapacity },
+    { field: 'mileage', label: 'Mileage / Range', value: bike.mileage },
+    { field: 'topSpeed', label: 'Top Speed', value: bike.topSpeed },
+    { field: 'brakingSystem', label: 'Braking System', value: bike.brakingSystem },
+    { field: 'frontSuspension', label: 'Front Suspension', value: bike.frontSuspension },
+    { field: 'rearSuspension', label: 'Rear Suspension', value: bike.rearSuspension },
+    { field: 'dimensions', label: 'Dimensions (L × W × H)', value: bike.dimensions },
+    { field: 'weight', label: 'Weight', value: bike.weight },
   ];
 
   return (
     <>
       <SEO
         title={`${bike.name} Price in Pakistan, Specs & Review | CHAND MOTORS`}
-        description={`${bike.name} (${bike.engineCapacityLabel}) estimated price ${formatPkr(bike.estimatedPricePkr)}. Explore verified specs, braking, suspension, colors, and WhatsApp inquiry at CHAND MOTORS.`}
+        description={`${bike.name} price information: ${bike.priceLabel.toLowerCase()} ${formatPkr(bike.estimatedPricePkr)}. Review source notes and request current Pakistani-market availability from CHAND MOTORS.`}
         path={`/motorcycles/${bike.slug}`}
         image={bike.imageUrl}
         type="product"
@@ -242,12 +258,15 @@ export function BikeDetailPage() {
             <div className="aspect-[4/3] rounded-lg overflow-hidden bg-[#141417] border border-zinc-800">
               <BikeImage
                 src={activeImage || bike.imageUrl}
-                alt={`${bike.brand} ${bike.name} studio photograph`}
+                alt={`Illustrative motorcycle artwork for ${bike.brand} ${bike.name}`}
                 className="w-full h-full object-cover"
                 priority
                 fallbackLabel={bike.name}
               />
             </div>
+            <p className="text-xs text-zinc-500">
+              Illustrative image; appearance may differ from the exact model year and trim.
+            </p>
 
             {gallery.length > 1 && (
               <div className="grid grid-cols-4 gap-3">
@@ -280,7 +299,9 @@ export function BikeDetailPage() {
                 <span aria-hidden="true">·</span>
                 <span>{bike.category}</span>
                 <span aria-hidden="true">·</span>
-                <span className="text-zinc-200">{bike.availability}</span>
+                <span className="text-zinc-200">
+                  {bike.availability === 'Availability Unconfirmed' ? 'Availability unconfirmed' : bike.availability}
+                </span>
               </div>
 
               <h1 className="font-display text-4xl sm:text-5xl font-bold text-white tracking-tight leading-none">
@@ -296,21 +317,26 @@ export function BikeDetailPage() {
                 {bike.priceLabel} · Last updated {bike.priceUpdatedAt}
               </p>
               <p className="text-[11px] text-zinc-500 mt-2 leading-relaxed">
-                {siteContent?.priceDisclaimer ||
-                  'Indicative PKR estimate. City registration, freight, and filer/non-filer tax apply separately.'}
+                {bike.priceLabel === 'Official Starting Price (PKR)'
+                  ? 'Manufacturer-published starting price; dealer charges, registration, freight, and taxes may change the on-road total.'
+                  : siteContent?.priceDisclaimer ||
+                    'Indicative PKR estimate. City registration, freight, and filer/non-filer tax apply separately.'}
               </p>
             </div>
 
-            <p className="text-sm text-zinc-300 leading-relaxed">{bike.description}</p>
+            <p className="text-sm text-zinc-300 leading-relaxed">{bikeDescription}</p>
+            <p className="text-xs text-zinc-500">
+              Catalog information may vary by market and model year. Confirm specifications with the manufacturer before purchase.
+            </p>
 
             {/* Available Colors */}
-            <div>
+            {verifiedFields.has('colors') && <div>
               <p className="text-xs font-medium text-zinc-400 mb-2">Available Color Finishes</p>
               <p className="text-sm text-white font-medium">{bike.colors.join(' · ')}</p>
-            </div>
+            </div>}
 
             {/* Key Features */}
-            {bike.keyFeatures.length > 0 && (
+            {verifiedFields.has('keyFeatures') && bike.keyFeatures.length > 0 && (
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2.5">
                   Key Highlights
@@ -386,7 +412,7 @@ export function BikeDetailPage() {
           {/* Technical Specifications Table */}
           <div>
             <h2 className="font-display text-3xl font-bold text-white tracking-tight mb-6">
-              Verified Technical Specifications
+              Technical Specifications
             </h2>
             <div className="bg-[#141417] border border-zinc-800 rounded-lg overflow-hidden">
               <table className="w-full text-left text-sm">
@@ -397,7 +423,7 @@ export function BikeDetailPage() {
                         {row.label}
                       </th>
                       <td className="py-3.5 px-5 text-zinc-100 font-mono text-xs sm:text-sm tabular-nums">
-                        {row.value}
+                        {verifiedFields.has(row.field) ? row.value : verificationLabel}
                       </td>
                     </tr>
                   ))}
@@ -409,14 +435,14 @@ export function BikeDetailPage() {
           {/* Direct Showroom Callback Form */}
           <div>
             <h2 className="font-display text-3xl font-bold text-white tracking-tight mb-6">
-              Request Dealer Quote
+            Request a Price Quote
             </h2>
             <form
               onSubmit={handleInquirySubmit}
               className="bg-[#141417] border border-zinc-800 rounded-lg p-6 space-y-4"
             >
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Submit your contact details for <strong className="text-white">{bike.name}</strong> and our showroom advisor will confirm live stock and city registration fees.
+                Submit your contact details for <strong className="text-white">{bike.name}</strong> to request current availability and city-specific pricing.
               </p>
 
               {inquiryError && (
@@ -511,6 +537,47 @@ export function BikeDetailPage() {
             </form>
           </div>
         </div>
+
+        <section className="mt-12 p-6 rounded-lg bg-[#141417] border border-zinc-800">
+          <h2 className="font-display text-2xl font-bold text-white">Source References &amp; Data Notes</h2>
+          {(bike.sourceUrls ?? []).length > 0 ? (
+            <>
+              <p className="text-sm text-zinc-400 mt-2">
+                Manufacturer reference{(bike.sourceUrls ?? []).length > 1 ? 's' : ''} checked on{' '}
+                {bike.sourceCheckedAt || 'date not recorded'}. These pages may not verify every specification shown or
+                confirm Pakistani-market pricing and availability.
+              </p>
+              <p className="text-xs text-zinc-500 mt-2">
+                Field-level source coverage: {(bike.verifiedFields ?? []).length > 0
+                  ? (bike.verifiedFields ?? [])
+                      .map((field) => VERIFIED_FIELD_LABELS[field] ?? field)
+                      .filter(Boolean)
+                      .join(', ')
+                  : 'no individual fields verified'}.
+              </p>
+              <ul className="mt-4 space-y-2">
+                {(bike.sourceUrls ?? []).map((url) => (
+                  <li key={url}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-red-300 underline underline-offset-2 hover:text-red-200 break-all"
+                    >
+                      {url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-sm text-zinc-400 mt-2">
+              No primary manufacturer source has been recorded for this model. Specifications and the dated market
+              estimate are not independently verified; confirm them with the manufacturer or an authorized local dealer
+              before purchase.
+            </p>
+          )}
+        </section>
 
         {/* Related Motorcycles */}
         {related.length > 0 && (

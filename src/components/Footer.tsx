@@ -18,16 +18,15 @@ export function Footer() {
               <BrandLogo size="md" />
             </Link>
             <p className="text-sm text-zinc-400 leading-relaxed max-w-xs">
-              CHAND MOTORS curates verified motorcycles across Pakistan—from daily 70cc and 125cc commuters to imported superbikes and graphene electric scooters.
+              CHAND MOTORS is a Pakistan-focused motorcycle catalog with estimated PKR pricing and direct WhatsApp inquiries.
             </p>
             <div className="space-y-2 text-sm">
-              <div className="flex items-start gap-2.5 text-zinc-300">
-                <MapPin className="w-4 h-4 text-[#D91E2A] shrink-0 mt-0.5" aria-hidden="true" />
-                <span>
-                  {siteContent?.showroomAddress || 'Plot 14-C, Main Boulevard, Gulberg III'},{' '}
-                  {siteContent?.showroomCity || 'Lahore, Pakistan'}
-                </span>
-              </div>
+              {(siteContent?.showroomAddress || siteContent?.showroomCity) && (
+                <div className="flex items-start gap-2.5 text-zinc-300">
+                  <MapPin className="w-4 h-4 text-[#D91E2A] shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>{[siteContent.showroomAddress, siteContent.showroomCity].filter(Boolean).join(', ')}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2.5 text-zinc-300">
                 <Phone className="w-4 h-4 text-[#D91E2A] shrink-0" aria-hidden="true" />
                 <a
@@ -39,10 +38,12 @@ export function Footer() {
                   {whatsappDisplay}
                 </a>
               </div>
-              <div className="flex items-center gap-2.5 text-zinc-400">
-                <Clock className="w-4 h-4 text-zinc-500 shrink-0" aria-hidden="true" />
-                <span>{siteContent?.showroomHours || 'Mon – Sat · 10:00 AM – 8:00 PM PKT'}</span>
-              </div>
+              {siteContent?.showroomHours && (
+                <div className="flex items-center gap-2.5 text-zinc-400">
+                  <Clock className="w-4 h-4 text-zinc-500 shrink-0" aria-hidden="true" />
+                  <span>{siteContent.showroomHours}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -110,7 +111,7 @@ export function Footer() {
               Direct Dealer Inquiry
             </h3>
             <p className="text-sm text-zinc-400 leading-relaxed">
-              Need verified city registration costs, installment guidance, or CBU import booking quotes? Message our showroom desk directly.
+              Ask about city-specific costs, installment options, or import inquiries through WhatsApp.
             </p>
             <a
               href={buildWhatsAppUrl()}
@@ -127,7 +128,7 @@ export function Footer() {
         <div className="mt-12 pt-8 border-t border-zinc-800/80 space-y-3">
           <p className="text-xs text-zinc-500 leading-relaxed">
             {siteContent?.priceDisclaimer ||
-              'Estimated PKR prices are indicative ex-showroom or CBU import estimates as of November 2026 and exclude city registration, withholding tax, and freight unless noted. Confirm live availability and final invoice directly via WhatsApp.'}
+              'Prices are indicative estimates, not live dealer offers. They may exclude registration, taxes, and freight. Confirm current availability and final pricing directly on WhatsApp.'}
           </p>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-zinc-500">
             <p>© {new Date().getFullYear()} CHAND MOTORS Pakistan. All rights reserved.</p>

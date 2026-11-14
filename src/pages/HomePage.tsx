@@ -19,11 +19,11 @@ import { heroFlagshipImg } from '../lib/imageMap.ts';
 const HOME_FAQS = [
   {
     q: 'Are motorcycle prices on CHAND MOTORS guaranteed final on-road prices?',
-    a: 'All prices listed on CHAND MOTORS are transparent estimated PKR ex-showroom or CBU import estimates as of November 2026. Final on-road totals vary slightly by city freight, provincial registration, and filer/non-filer withholding tax. Confirm live booking pricing on WhatsApp 03217293026.',
+    a: 'Prices shown are estimates rather than live dealer offers. Registration, taxes, and freight may not be included. Confirm current pricing and availability on WhatsApp 03217293026.',
   },
   {
-    q: 'Which motorcycle brands are available through CHAND MOTORS in Pakistan?',
-    a: 'We feature verified specifications and showroom inquiries for Honda, Yamaha, Suzuki, Kawasaki, BMW Motorrad, Benelli, United, Road Prince, Super Power, Hi-Speed, Yadea, and Evee.',
+    q: 'Which motorcycle brands are listed on CHAND MOTORS?',
+    a: 'The catalog includes Honda, Yamaha, Suzuki, Kawasaki, BMW Motorrad, Benelli, United, Road Prince, Super Power, Hi-Speed, Yadea, and Evee. A listing is not a guarantee of local stock or authorized-dealer status.',
   },
   {
     q: 'Can I compare commuter, sports, and electric motorcycles side by side?',
@@ -31,7 +31,7 @@ const HOME_FAQS = [
   },
   {
     q: 'How do I book an inspection or request a motorcycle quotation?',
-    a: 'Every motorcycle listing connects directly to our showroom desk via WhatsApp (03217293026) with the selected model prefilled, or you can submit a callback request on any bike detail page.',
+    a: 'Every motorcycle listing links to WhatsApp (03217293026) with the selected model prefilled, or you can submit an inquiry on a bike detail page.',
   },
 ];
 
@@ -83,8 +83,8 @@ export function HomePage() {
   return (
     <>
       <SEO
-        title="CHAND MOTORS – Luxury Motorcycle Showroom & Pakistan Specs Catalog"
-        description="Explore verified motorcycle specs, estimated PKR prices, side-by-side comparisons, and direct WhatsApp inquiries at CHAND MOTORS Pakistan."
+        title="CHAND MOTORS – Luxury Motorcycle Catalog & Pakistan Specs"
+        description="Explore motorcycle specifications, estimated PKR prices, side-by-side comparisons, and direct WhatsApp inquiries at CHAND MOTORS Pakistan."
         path="/"
         image="/src/assets/images/hero_flagship_superbike_1794636799761.jpg"
         structuredData={faqSchema}
@@ -95,7 +95,7 @@ export function HomePage() {
         <div className="absolute inset-0">
           <img
             src={heroFlagshipImg}
-            alt="CHAND MOTORS flagship black and crimson superbike in architectural showroom"
+            alt="Illustrative black and crimson superbike artwork for the CHAND MOTORS catalog"
             loading="eager"
             decoding="sync"
             referrerPolicy="no-referrer"
@@ -113,7 +113,7 @@ export function HomePage() {
             className="max-w-2xl space-y-6"
           >
             <p className="text-xs sm:text-sm font-medium tracking-[0.16em] uppercase text-[#D91E2A]">
-              CHAND MOTORS · Lahore Showroom · Verified Pakistan Specs
+              CHAND MOTORS · Pakistan Motorcycle Catalog
             </p>
 
             <h1 className="font-display font-bold text-white tracking-tight leading-[0.98] text-[clamp(2.65rem,5vw,4.5rem)]">
@@ -122,7 +122,7 @@ export function HomePage() {
 
             <p className="text-base sm:text-lg text-zinc-300 leading-relaxed max-w-xl">
               {siteContent?.heroSubheadline ||
-                'From daily 70cc and 125cc commuters to track-bred 1000cc superbikes and graphene electric scooters. Verified specifications, transparent estimated PKR pricing, and direct WhatsApp dealer support.'}
+                'Explore popular petrol and electric motorcycles, compare specifications, review estimated PKR prices, and ask about current availability on WhatsApp.'}
             </p>
 
             {/* Primary Search & Action Row */}
@@ -305,10 +305,10 @@ export function HomePage() {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
               <div>
                 <h2 className="font-display text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                  Authorized &amp; Imported Manufacturers
+                  Popular Motorcycle Brands
                 </h2>
                 <p className="text-sm text-zinc-400 mt-1">
-                  Select any manufacturer to filter verified models and estimated PKR pricing.
+                  Select a manufacturer to filter catalog models and estimated PKR pricing.
                 </p>
               </div>
             </div>
@@ -408,7 +408,7 @@ export function HomePage() {
                   </thead>
                   <tbody className="divide-y divide-zinc-800/70 font-mono text-xs sm:text-sm tabular-nums">
                     <tr>
-                      <td className="py-3 px-5 font-sans text-zinc-400">Estimated Price</td>
+                      <td className="py-3 px-5 font-sans text-zinc-400">PKR Price / Estimate</td>
                       <td className="py-3 px-5 text-white font-semibold">
                         {formatPkr(leftBike.estimatedPricePkr)}
                       </td>
@@ -418,8 +418,12 @@ export function HomePage() {
                     </tr>
                     <tr>
                       <td className="py-3 px-5 font-sans text-zinc-400">Engine Displacement</td>
-                      <td className="py-3 px-5 text-zinc-200">{leftBike.engineCapacityLabel}</td>
-                      <td className="py-3 px-5 text-zinc-200">{rightBike.engineCapacityLabel}</td>
+                      <td className="py-3 px-5 text-zinc-200">
+                        {leftBike.verifiedFields?.includes('cc') ? leftBike.engineCapacityLabel : 'Not verified'}
+                      </td>
+                      <td className="py-3 px-5 text-zinc-200">
+                        {rightBike.verifiedFields?.includes('cc') ? rightBike.engineCapacityLabel : 'Not verified'}
+                      </td>
                     </tr>
                     <tr>
                       <td className="py-3 px-5 font-sans text-zinc-400">Transmission</td>
@@ -433,8 +437,12 @@ export function HomePage() {
                     </tr>
                     <tr>
                       <td className="py-3 px-5 font-sans text-zinc-400">Fuel / Battery</td>
-                      <td className="py-3 px-5 text-zinc-200 font-sans">{leftBike.fuelTankCapacity}</td>
-                      <td className="py-3 px-5 text-zinc-200 font-sans">{rightBike.fuelTankCapacity}</td>
+                      <td className="py-3 px-5 text-zinc-200 font-sans">
+                        {leftBike.verifiedFields?.includes('fuelTankCapacity') ? leftBike.fuelTankCapacity : 'Not verified'}
+                      </td>
+                      <td className="py-3 px-5 text-zinc-200 font-sans">
+                        {rightBike.verifiedFields?.includes('fuelTankCapacity') ? rightBike.fuelTankCapacity : 'Not verified'}
+                      </td>
                     </tr>
                     <tr>
                       <td className="py-3 px-5 font-sans text-zinc-400">Weight</td>
@@ -512,41 +520,42 @@ export function HomePage() {
             </div>
           </div>
 
-          {/* Verified Buyer Testimonials */}
-          <div className="pt-10 border-t border-zinc-800/80">
-            <div className="mb-8">
-              <p className="text-xs font-medium tracking-[0.14em] uppercase text-[#D91E2A] mb-1.5">
-                Rider Feedback
-              </p>
-              <h2 className="font-display text-3xl font-bold text-white tracking-tight">
-                Verified Pakistani Rider Reviews
-              </h2>
-            </div>
+          {reviews.length > 0 && (
+            <section className="pt-10 border-t border-zinc-800/80" aria-labelledby="rider-reviews">
+              <div className="mb-8">
+                <p className="text-xs font-medium tracking-[0.14em] uppercase text-[#D91E2A] mb-1.5">
+                  Rider Feedback
+                </p>
+                <h2 id="rider-reviews" className="font-display text-3xl font-bold text-white tracking-tight">
+                  Rider Reviews
+                </h2>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {reviews.map((review) => (
-                <blockquote
-                  key={review.id}
-                  className="p-6 rounded-lg bg-[#141417] border border-zinc-800 flex flex-col justify-between gap-4"
-                >
-                  <div>
-                    <div className="flex items-center gap-1 text-[#D91E2A] mb-3" aria-label={`${review.rating} out of 5 stars`}>
-                      {Array.from({ length: review.rating }).map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-current" aria-hidden="true" />
-                      ))}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {reviews.map((review) => (
+                  <blockquote
+                    key={review.id}
+                    className="p-6 rounded-lg bg-[#141417] border border-zinc-800 flex flex-col justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-1 text-[#D91E2A] mb-3" aria-label={`${review.rating} out of 5 stars`}>
+                        {Array.from({ length: review.rating }).map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-current" aria-hidden="true" />
+                        ))}
+                      </div>
+                      <p className="text-sm text-zinc-200 leading-relaxed">“{review.quote}”</p>
                     </div>
-                    <p className="text-sm text-zinc-200 leading-relaxed">“{review.quote}”</p>
-                  </div>
-                  <footer className="pt-3 border-t border-zinc-800/80 text-xs text-zinc-400">
-                    <p className="font-semibold text-white">{review.customerName}</p>
-                    <p>
-                      {review.city} · {review.bikePurchased}
-                    </p>
-                  </footer>
-                </blockquote>
-              ))}
-            </div>
-          </div>
+                    <footer className="pt-3 border-t border-zinc-800/80 text-xs text-zinc-400">
+                      <p className="font-semibold text-white">{review.customerName}</p>
+                      <p>
+                        {review.city} · {review.bikePurchased}
+                      </p>
+                    </footer>
+                  </blockquote>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </section>
 

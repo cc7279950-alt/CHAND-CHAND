@@ -23,14 +23,102 @@ import {
 import {
   isMailerConfigured,
   recordAndNotifySignIn,
+  sendPasswordResetCode,
   sendTestNotificationEmail,
 } from './server/mailer.ts';
 
+const PORT = 3000;
+const JWT_SECRET = process.env.JWT_SECRET || (
+  process.env.NODE_ENV === 'production' ? '' : crypto.randomBytes(32).toString('hex')
+);
+const COOKIE_NAME = 'chand_auth_token';
+
+if (JWT_SECRET.length < 32) {
+  throw new Error('Set JWT_SECRET to a random value of at least 32 characters before starting production.');
+}
+
+if (process.env.NODE_ENV !== 'production' && !process.env.JWT_SECRET) {
+  console.warn('JWT_SECRET is unset; using an ephemeral development-only secret.');
+}
+
 seedDatabase();
 
-const PORT = 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'chand-motors-dev-jwt-secret-change-in-prod';
-const COOKIE_NAME = 'chand_auth_token';
+function isValidSourceUrl(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+function isValidSourceUrlList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 10 && value.every(isValidSourceUrl);
+}
+
+const VERIFIED_MOTORCYCLE_FIELDS = new Set([
+  'cc',
+  'engineCapacityLabel',
+  'engineType',
+  'horsepower',
+  'torque',
+  'transmission',
+  'fuelTankCapacity',
+  'mileage',
+  'topSpeed',
+  'brakingSystem',
+  'frontSuspension',
+  'rearSuspension',
+  'dimensions',
+  'weight',
+  'colors',
+  'estimatedPricePkr',
+  'keyFeatures',
+  'description',
+]);
+
+function isValidVerifiedFieldList(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= VERIFIED_MOTORCYCLE_FIELDS.size &&
+    value.every((field) => typeof field === 'string' && VERIFIED_MOTORCYCLE_FIELDS.has(field))
+  );
+}
+
+function isValidSourceCheckedAt(value: unknown): value is string {
+  if (value === '') return true;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function toPublicMotorcycle(motorcycle: ReturnType<typeof mapMotorcycleRow>) {
+  const verified = new Set(motorcycle.verifiedFields ?? []);
+  const unverified = 'Not verified from a listed primary source';
+  return {
+    ...motorcycle,
+    cc: verified.has('cc') ? motorcycle.cc : 0,
+    engineCapacityLabel: verified.has('cc') ? motorcycle.engineCapacityLabel : unverified,
+    engineType: verified.has('engineType') ? motorcycle.engineType : unverified,
+    horsepower: verified.has('horsepower') ? motorcycle.horsepower : unverified,
+    torque: verified.has('torque') ? motorcycle.torque : unverified,
+    transmission: verified.has('transmission') ? motorcycle.transmission : unverified,
+    fuelTankCapacity: verified.has('fuelTankCapacity') ? motorcycle.fuelTankCapacity : unverified,
+    mileage: verified.has('mileage') ? motorcycle.mileage : unverified,
+    topSpeed: verified.has('topSpeed') ? motorcycle.topSpeed : unverified,
+    brakingSystem: verified.has('brakingSystem') ? motorcycle.brakingSystem : unverified,
+    frontSuspension: verified.has('frontSuspension') ? motorcycle.frontSuspension : unverified,
+    rearSuspension: verified.has('rearSuspension') ? motorcycle.rearSuspension : unverified,
+    dimensions: verified.has('dimensions') ? motorcycle.dimensions : unverified,
+    weight: verified.has('weight') ? motorcycle.weight : unverified,
+    colors: verified.has('colors') ? motorcycle.colors : [],
+    keyFeatures: verified.has('keyFeatures') ? motorcycle.keyFeatures : [],
+    description: verified.has('description')
+      ? motorcycle.description
+      : `${motorcycle.name} is listed in the CHAND MOTORS catalog. Specifications and market availability should be confirmed with the manufacturer or an authorized local dealer before purchase.`,
+  };
+}
 
 interface AuthPayload {
   userId: number;
@@ -120,6 +208,30 @@ function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFuncti
     }
     next();
   });
+}
+
+const authAttemptBuckets = new Map<string, { count: number; resetAt: number }>();
+const AUTH_ATTEMPT_LIMIT = 10;
+const AUTH_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+
+function limitAuthAttempts(req: Request, res: Response, next: NextFunction): void {
+  const now = Date.now();
+  const key = `${req.path}:${req.ip || 'unknown'}`;
+  let bucket = authAttemptBuckets.get(key);
+
+  if (!bucket || bucket.resetAt <= now) {
+    bucket = { count: 0, resetAt: now + AUTH_ATTEMPT_WINDOW_MS };
+    authAttemptBuckets.set(key, bucket);
+  }
+
+  if (bucket.count >= AUTH_ATTEMPT_LIMIT) {
+    res.setHeader('Retry-After', String(Math.ceil((bucket.resetAt - now) / 1000)));
+    res.status(429).json({ error: 'Too many authentication attempts. Please try again later.' });
+    return;
+  }
+
+  bucket.count += 1;
+  next();
 }
 
 function slugify(value: string): string {
@@ -216,17 +328,16 @@ async function startServer() {
         (b) =>
           b.name.toLowerCase().includes(q) ||
           b.brand.toLowerCase().includes(q) ||
-          b.category.toLowerCase().includes(q) ||
-          b.engineType.toLowerCase().includes(q),
+          b.category.toLowerCase().includes(q),
       );
     }
     if (typeof minCc === 'string' && minCc !== '') {
       const min = Number(minCc);
-      if (!Number.isNaN(min)) items = items.filter((b) => b.cc >= min);
+      if (!Number.isNaN(min)) items = items.filter((b) => b.verifiedFields?.includes('cc') && b.cc >= min);
     }
     if (typeof maxCc === 'string' && maxCc !== '') {
       const max = Number(maxCc);
-      if (!Number.isNaN(max)) items = items.filter((b) => b.cc <= max);
+      if (!Number.isNaN(max)) items = items.filter((b) => b.verifiedFields?.includes('cc') && b.cc <= max);
     }
     if (typeof minPrice === 'string' && minPrice !== '') {
       const min = Number(minPrice);
@@ -242,12 +353,15 @@ async function startServer() {
     } else if (sort === 'price-desc') {
       items.sort((a, b) => b.estimatedPricePkr - a.estimatedPricePkr);
     } else if (sort === 'cc-desc') {
-      items.sort((a, b) => b.cc - a.cc);
+      items.sort(
+        (a, b) =>
+          Number(b.verifiedFields?.includes('cc')) - Number(a.verifiedFields?.includes('cc')) || b.cc - a.cc,
+      );
     } else {
       items.sort((a, b) => b.popularityScore - a.popularityScore);
     }
 
-    res.json({ motorcycles: items });
+    res.json({ motorcycles: items.map(toPublicMotorcycle) });
   });
 
   app.get('/api/motorcycles/:slug', (req, res) => {
@@ -263,8 +377,8 @@ async function startServer() {
       .prepare('SELECT * FROM motorcycles WHERE slug != ? AND (category = ? OR brand = ?) LIMIT 4')
       .all(motorcycle.slug, motorcycle.category, motorcycle.brand) as Record<string, unknown>[];
     res.json({
-      motorcycle,
-      related: relatedRows.map(mapMotorcycleRow),
+      motorcycle: toPublicMotorcycle(motorcycle),
+      related: relatedRows.map(mapMotorcycleRow).map(toPublicMotorcycle),
     });
   });
 
@@ -345,7 +459,7 @@ async function startServer() {
         typeof email === 'string' ? email.trim() : '',
         motorcycleId ? Number(motorcycleId) : null,
         typeof motorcycleName === 'string' && motorcycleName.trim() ? motorcycleName.trim() : 'General Showroom Inquiry',
-        typeof city === 'string' && city.trim() ? city.trim() : 'Lahore',
+        typeof city === 'string' ? city.trim() : '',
         message.trim(),
         now,
       );
@@ -358,7 +472,7 @@ async function startServer() {
   });
 
   // Authentication Routes
-  app.post('/api/auth/register', (req, res) => {
+  app.post('/api/auth/register', limitAuthAttempts, (req, res) => {
     const { name, email, password, phone, city } = req.body ?? {};
     if (typeof name !== 'string' || name.trim().length < 2) {
       res.status(400).json({ error: 'Full name must be at least 2 characters.' });
@@ -380,7 +494,7 @@ async function startServer() {
       return;
     }
 
-    const passwordHash = bcrypt.hashSync(password, 10);
+    const passwordHash = bcrypt.hashSync(password, 12);
     const now = new Date().toISOString();
 
     const result = db
@@ -424,7 +538,7 @@ async function startServer() {
     res.status(201).json({ user });
   });
 
-  app.post('/api/auth/login', (req, res) => {
+  app.post('/api/auth/login', limitAuthAttempts, (req, res) => {
     const { email, password } = req.body ?? {};
     if (typeof email !== 'string' || !isValidEmail(email.trim())) {
       res.status(400).json({ error: 'Please provide a valid email address.' });
@@ -492,7 +606,7 @@ async function startServer() {
       typeof name === 'string' && name.trim().length >= 2 ? name.trim() : String(existing.name);
     const nextPhone = typeof phone === 'string' ? phone.trim() : String(existing.phone || '');
     const nextCity =
-      typeof city === 'string' && city.trim() ? city.trim() : String(existing.city || 'Lahore');
+      typeof city === 'string' && city.trim() ? city.trim() : String(existing.city || '');
     const nextSaved = Array.isArray(savedBikeIds)
       ? JSON.stringify(savedBikeIds.map((x) => Number(x)).filter((n) => !Number.isNaN(n)))
       : String(existing.saved_bike_ids || '[]');
@@ -512,10 +626,15 @@ async function startServer() {
     res.json({ user: mapUserRow(updated) });
   });
 
-  app.post('/api/auth/forgot-password', (req, res) => {
+  app.post('/api/auth/forgot-password', limitAuthAttempts, async (req, res) => {
     const { email } = req.body ?? {};
     if (typeof email !== 'string' || !isValidEmail(email.trim())) {
       res.status(400).json({ error: 'Please enter a valid email address.' });
+      return;
+    }
+
+    if (!isMailerConfigured().configured) {
+      res.status(503).json({ error: 'Password recovery is not available until email delivery is configured.' });
       return;
     }
 
@@ -527,12 +646,12 @@ async function startServer() {
     if (!userRow) {
       res.json({
         ok: true,
-        message: 'If an account matches that email, a 6-digit reset verification code has been issued.',
+        message: 'If an account matches that email, a 6-digit reset code has been sent.',
       });
       return;
     }
 
-    const code = String(crypto.randomInt(100000, 999999));
+    const code = String(crypto.randomInt(100000, 1_000_000));
     const codeHash = crypto.createHash('sha256').update(code).digest('hex');
     const expiresAt = Date.now() + 15 * 60 * 1000;
 
@@ -542,23 +661,30 @@ async function startServer() {
       userRow.id,
     );
 
-    const payload: Record<string, unknown> = {
-      ok: true,
-      message: 'A 6-digit verification code has been generated and expires in 15 minutes.',
-    };
-    if (process.env.NODE_ENV !== 'production') {
-      payload.verificationCodePreview = code;
+    try {
+      await sendPasswordResetCode(normalizedEmail, code);
+    } catch (error) {
+      console.error('Password reset email delivery failed:', error);
+      db.prepare('UPDATE users SET reset_token_hash = NULL, reset_token_expires_at = NULL WHERE id = ?').run(
+        userRow.id,
+      );
+      res.status(503).json({ error: 'Could not deliver a password reset email. Please try again later.' });
+      return;
     }
-    res.json(payload);
+
+    res.json({
+      ok: true,
+      message: 'If an account matches that email, a 6-digit reset code has been sent and expires in 15 minutes.',
+    });
   });
 
-  app.post('/api/auth/reset-password', (req, res) => {
+  app.post('/api/auth/reset-password', limitAuthAttempts, (req, res) => {
     const { email, code, newPassword } = req.body ?? {};
     if (typeof email !== 'string' || !isValidEmail(email.trim())) {
       res.status(400).json({ error: 'Valid email is required.' });
       return;
     }
-    if (typeof code !== 'string' || code.trim().length < 6) {
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code.trim())) {
       res.status(400).json({ error: '6-digit verification code is required.' });
       return;
     }
@@ -583,12 +709,13 @@ async function startServer() {
     }
 
     const providedHash = crypto.createHash('sha256').update(code.trim()).digest('hex');
-    if (providedHash !== String(userRow.reset_token_hash)) {
+    const storedHash = String(userRow.reset_token_hash);
+    if (!crypto.timingSafeEqual(Buffer.from(providedHash), Buffer.from(storedHash))) {
       res.status(400).json({ error: 'Verification code does not match.' });
       return;
     }
 
-    const newHash = bcrypt.hashSync(newPassword, 10);
+    const newHash = bcrypt.hashSync(newPassword, 12);
     db.prepare(
       'UPDATE users SET password_hash = ?, reset_token_hash = NULL, reset_token_expires_at = NULL WHERE id = ?',
     ).run(newHash, Number(userRow.id));
@@ -658,6 +785,21 @@ async function startServer() {
       res.status(400).json({ error: 'Valid estimated PKR price is required.' });
       return;
     }
+    if (body.sourceUrls !== undefined && !isValidSourceUrlList(body.sourceUrls)) {
+      res.status(400).json({ error: 'Source links must be HTTPS URLs (up to 10 links).' });
+      return;
+    }
+    if (body.sourceCheckedAt !== undefined && !isValidSourceCheckedAt(body.sourceCheckedAt)) {
+      res.status(400).json({ error: 'Source checked date must use YYYY-MM-DD format.' });
+      return;
+    }
+    if (
+      (body.verifiedFields !== undefined && !isValidVerifiedFieldList(body.verifiedFields)) ||
+      ((body.verifiedFields?.length ?? 0) > 0 && !(body.sourceUrls ?? []).length)
+    ) {
+      res.status(400).json({ error: 'Verified fields must be valid and backed by at least one source link.' });
+      return;
+    }
 
     const baseSlug = slugify(body.slug || body.name);
     let finalSlug = baseSlug;
@@ -679,10 +821,10 @@ async function startServer() {
           slug, name, brand, category, cc, engine_capacity_label, engine_type,
           horsepower, torque, transmission, fuel_tank_capacity, mileage, top_speed,
           braking_system, front_suspension, rear_suspension, dimensions, weight,
-          colors, estimated_price_pkr, price_label, price_updated_at, key_features,
-          description, image_url, gallery_urls, is_featured, is_latest_arrival,
-          popularity_score, availability, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          colors, estimated_price_pkr, price_label, price_updated_at, source_urls,
+          source_checked_at, verified_fields, key_features, description, image_url, gallery_urls,
+          is_featured, is_latest_arrival, popularity_score, availability, created_at, updated_at
+        ) VALUES (${Array(35).fill('?').join(', ')})`,
       )
       .run(
         finalSlug,
@@ -707,6 +849,9 @@ async function startServer() {
         price,
         body.priceLabel?.trim() || 'Estimated Showroom (PKR)',
         body.priceUpdatedAt?.trim() || now.slice(0, 10),
+        JSON.stringify(body.sourceUrls ?? []),
+        body.sourceCheckedAt ?? '',
+        JSON.stringify(body.verifiedFields ?? []),
         JSON.stringify(Array.isArray(body.keyFeatures) ? body.keyFeatures : []),
         body.description?.trim() || `${body.brand.trim()} ${body.name.trim()} listed at CHAND MOTORS.`,
         imageUrl,
@@ -714,7 +859,7 @@ async function startServer() {
         body.isFeatured ? 1 : 0,
         body.isLatestArrival ? 1 : 0,
         Number(body.popularityScore) || 75,
-        body.availability || 'In Stock',
+        body.availability || 'Availability Unconfirmed',
         now,
         now,
       );
@@ -739,13 +884,33 @@ async function startServer() {
     const current = mapMotorcycleRow(existingRow);
     const body = req.body ?? {};
     const now = new Date().toISOString();
+    if (body.sourceUrls !== undefined && !isValidSourceUrlList(body.sourceUrls)) {
+      res.status(400).json({ error: 'Source links must be HTTPS URLs (up to 10 links).' });
+      return;
+    }
+    if (body.sourceCheckedAt !== undefined && !isValidSourceCheckedAt(body.sourceCheckedAt)) {
+      res.status(400).json({ error: 'Source checked date must use YYYY-MM-DD format.' });
+      return;
+    }
+    if (body.verifiedFields !== undefined && !isValidVerifiedFieldList(body.verifiedFields)) {
+      res.status(400).json({ error: 'Verified fields must be valid.' });
+      return;
+    }
+    const updatedSourceUrls = body.sourceUrls !== undefined ? body.sourceUrls : current.sourceUrls ?? [];
+    const updatedVerifiedFields =
+      body.verifiedFields !== undefined ? body.verifiedFields : current.verifiedFields ?? [];
+    if (updatedVerifiedFields.length > 0 && updatedSourceUrls.length === 0) {
+      res.status(400).json({ error: 'Verified fields must be backed by at least one source link.' });
+      return;
+    }
 
     db.prepare(
       `UPDATE motorcycles SET
         name = ?, brand = ?, category = ?, cc = ?, engine_capacity_label = ?, engine_type = ?,
         horsepower = ?, torque = ?, transmission = ?, fuel_tank_capacity = ?, mileage = ?, top_speed = ?,
         braking_system = ?, front_suspension = ?, rear_suspension = ?, dimensions = ?, weight = ?,
-        colors = ?, estimated_price_pkr = ?, price_label = ?, price_updated_at = ?, key_features = ?,
+        colors = ?, estimated_price_pkr = ?, price_label = ?, price_updated_at = ?, source_urls = ?,
+        source_checked_at = ?, verified_fields = ?, key_features = ?,
         description = ?, image_url = ?, gallery_urls = ?, is_featured = ?, is_latest_arrival = ?,
         popularity_score = ?, availability = ?, updated_at = ?
        WHERE id = ?`,
@@ -771,6 +936,9 @@ async function startServer() {
       body.estimatedPricePkr !== undefined ? Number(body.estimatedPricePkr) : current.estimatedPricePkr,
       body.priceLabel ?? current.priceLabel,
       body.priceUpdatedAt ?? now.slice(0, 10),
+      JSON.stringify(body.sourceUrls !== undefined ? body.sourceUrls : current.sourceUrls ?? []),
+      body.sourceCheckedAt ?? current.sourceCheckedAt ?? '',
+      JSON.stringify(updatedVerifiedFields),
       JSON.stringify(Array.isArray(body.keyFeatures) ? body.keyFeatures : current.keyFeatures),
       body.description ?? current.description,
       body.imageUrl ?? current.imageUrl,
@@ -925,7 +1093,7 @@ async function startServer() {
       'INSERT INTO site_content (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
     );
     for (const k of allowedKeys) {
-      if (typeof updates[k] === 'string' && updates[k].trim()) {
+      if (typeof updates[k] === 'string') {
         stmt.run(k, updates[k].trim());
       }
     }

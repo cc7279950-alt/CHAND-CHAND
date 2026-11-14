@@ -8,7 +8,7 @@ export type BikeCategory =
   | 'Electric Bikes'
   | 'Premium Bikes';
 
-export type AvailabilityStatus = 'In Stock' | 'On Booking' | 'Limited Import';
+export type AvailabilityStatus = 'In Stock' | 'On Booking' | 'Limited Import' | 'Availability Unconfirmed';
 
 export interface Motorcycle {
   id: number;
@@ -34,6 +34,9 @@ export interface Motorcycle {
   estimatedPricePkr: number;
   priceLabel: string;
   priceUpdatedAt: string;
+  sourceUrls?: string[];
+  sourceCheckedAt?: string;
+  verifiedFields?: string[];
   keyFeatures: string[];
   description: string;
   imageUrl: string;

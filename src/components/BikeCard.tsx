@@ -18,18 +18,24 @@ export function BikeCard({ bike }: BikeCardProps) {
       <Link to={`/motorcycles/${bike.slug}`} className="relative block aspect-[4/3] bg-[#0E0E11] overflow-hidden">
         <BikeImage
           src={bike.imageUrl}
-          alt={`${bike.brand} ${bike.name} ${bike.category} in Pakistan`}
+          alt={`Illustrative ${bike.category.toLowerCase()} artwork for ${bike.brand} ${bike.name}`}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           fallbackLabel={bike.name}
         />
       </Link>
 
-      <div className="flex flex-col flex-1 p-5">
+      <p className="px-5 pt-2 text-[10px] text-zinc-500">
+        Illustrative image; confirm model and trim with the manufacturer.
+      </p>
+
+      <div className="flex flex-col flex-1 p-5 pt-3">
         {/* Zero-pill unboxed metadata with subtle separators */}
         <div className="flex items-center gap-2 text-xs text-zinc-400 mb-1.5 truncate">
           <span className="font-medium text-zinc-300">{bike.brand}</span>
           <span aria-hidden="true">·</span>
-          <span className="font-mono tabular-nums">{bike.engineCapacityLabel}</span>
+            <span className="font-mono tabular-nums">
+              {bike.verifiedFields?.includes('cc') ? bike.engineCapacityLabel : 'CC not verified'}
+            </span>
           <span aria-hidden="true">·</span>
           <span className="truncate">{bike.category}</span>
         </div>
@@ -43,11 +49,17 @@ export function BikeCard({ bike }: BikeCardProps) {
         <div className="grid grid-cols-2 gap-3 py-3 border-y border-zinc-800/80 text-xs mb-4">
           <div>
             <p className="text-zinc-500">Transmission</p>
-            <p className="text-zinc-200 font-medium truncate">{bike.transmission.split('(')[0].trim()}</p>
+            <p className="text-zinc-200 font-medium truncate">
+              {bike.verifiedFields?.includes('transmission')
+                ? bike.transmission.split('(')[0].trim()
+                : 'Not verified'}
+            </p>
           </div>
           <div>
             <p className="text-zinc-500">Availability</p>
-            <p className="text-zinc-200 font-medium">{bike.availability}</p>
+            <p className="text-zinc-200 font-medium">
+              {bike.availability === 'Availability Unconfirmed' ? 'Confirm Availability' : bike.availability}
+            </p>
           </div>
         </div>
 

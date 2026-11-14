@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import { db } from './db.ts';
 
-export const DEFAULT_NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'cc7279950@gmail.com';
+export const DEFAULT_NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || '';
 
 export interface AuthNotifyPayload {
   userId: number;
@@ -26,6 +26,21 @@ export function isMailerConfigured(): { configured: boolean; provider: string; r
     return { configured: true, provider: `Gmail SMTP (${gmailUser})`, recipient };
   }
   return { configured: false, provider: 'Not configured', recipient };
+}
+
+export async function sendPasswordResetCode(email: string, code: string): Promise<void> {
+  const mailer = createTransporter();
+  if (!mailer) {
+    throw new Error('Email transport is not configured.');
+  }
+
+  await mailer.transporter.sendMail({
+    from: mailer.from,
+    to: email,
+    subject: 'CHAND MOTORS password reset code',
+    text: `Your CHAND MOTORS password reset code is ${code}. It expires in 15 minutes. If you did not request this, you can ignore this email.`,
+    html: `<p>Your CHAND MOTORS password reset code is <strong>${code}</strong>.</p><p>It expires in 15 minutes. If you did not request this, you can ignore this email.</p>`,
+  });
 }
 
 function createTransporter() {
