@@ -1,0 +1,6 @@
+{
+  "name": "CHAND MOTORS",
+  "description": "CHAND MOTORS – Luxury motorcycle showroom, verified Pakistan catalog, side-by-side spec comparison, buying guides, and direct WhatsApp dealer concierge.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
