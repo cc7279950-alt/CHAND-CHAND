@@ -56,8 +56,7 @@ export function CatalogPage() {
         (b) =>
           b.name.toLowerCase().includes(q) ||
           b.brand.toLowerCase().includes(q) ||
-          b.category.toLowerCase().includes(q) ||
-          b.engineType.toLowerCase().includes(q),
+          b.category.toLowerCase().includes(q),
       );
     }
 
@@ -71,6 +70,7 @@ export function CatalogPage() {
 
     if (ccRange !== 'all') {
       list = list.filter((b) => {
+        if (!b.verifiedFields?.includes('cc')) return false;
         if (ccRange === 'ev') return b.cc === 0;
         if (ccRange === '70-115') return b.cc >= 70 && b.cc <= 115;
         if (ccRange === '125-155') return b.cc >= 120 && b.cc <= 160;
@@ -96,7 +96,10 @@ export function CatalogPage() {
     } else if (sortBy === 'price-desc') {
       list.sort((a, b) => b.estimatedPricePkr - a.estimatedPricePkr);
     } else if (sortBy === 'cc-desc') {
-      list.sort((a, b) => b.cc - a.cc);
+      list.sort(
+        (a, b) =>
+          Number(b.verifiedFields?.includes('cc')) - Number(a.verifiedFields?.includes('cc')) || b.cc - a.cc,
+      );
     } else {
       list.sort((a, b) => b.popularityScore - a.popularityScore);
     }
@@ -115,7 +118,7 @@ export function CatalogPage() {
     <>
       <SEO
         title={pageTitle}
-        description="Search and filter motorcycles in Pakistan by brand, engine CC, category, and estimated PKR price at CHAND MOTORS."
+        description="Search Pakistan motorcycle listings by brand and category, review dated PKR estimates, and check source-verified specifications at CHAND MOTORS."
         path="/catalog"
       />
 
@@ -124,14 +127,14 @@ export function CatalogPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-8 border-b border-zinc-800">
           <div>
             <p className="text-xs font-medium tracking-[0.14em] uppercase text-[#D91E2A] mb-1.5">
-              Pakistan Showroom Inventory
+              Pakistan Motorcycle Catalog
             </p>
             <h1 className="font-display text-4xl sm:text-5xl font-bold text-white tracking-tight">
               {category !== 'All' ? category : brand !== 'All' ? `${brand} Motorcycles` : 'All Motorcycles'}
             </h1>
             <p className="text-sm text-zinc-400 mt-2">
               Showing <span className="text-white font-semibold tabular-nums">{filteredBikes.length}</span> of{' '}
-              <span className="tabular-nums">{motorcycles.length}</span> models · Estimated PKR prices updated Nov 2026
+              <span className="tabular-nums">{motorcycles.length}</span> models · Estimated PKR pricing
             </p>
           </div>
 

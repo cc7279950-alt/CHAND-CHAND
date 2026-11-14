@@ -162,7 +162,7 @@ export function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('Lahore');
+  const [city, setCity] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -335,7 +335,6 @@ export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [previewCode, setPreviewCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -354,9 +353,6 @@ export function ForgotPasswordPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Request failed.');
       setMessage(data.message);
-      if (data.verificationCodePreview) {
-        setPreviewCode(data.verificationCodePreview);
-      }
       setStep('verify');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to send reset code.');
@@ -406,7 +402,7 @@ export function ForgotPasswordPage() {
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
               {step === 'request'
-                ? 'Enter your registered email to issue a 6-digit reset verification code.'
+                ? 'Enter your registered email to request a 6-digit reset code.'
                 : 'Enter the 6-digit verification code and choose a new password.'}
             </p>
           </div>
@@ -419,11 +415,6 @@ export function ForgotPasswordPage() {
           {message && (
             <div className="p-3 rounded bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 space-y-1">
               <p>{message}</p>
-              {previewCode && (
-                <p className="font-mono text-white">
-                  Local preview verification code: <strong>{previewCode}</strong>
-                </p>
-              )}
             </div>
           )}
 
@@ -447,7 +438,7 @@ export function ForgotPasswordPage() {
                 disabled={submitting}
                 className="w-full h-11 rounded-md bg-[#D91E2A] hover:bg-[#b91822] text-sm font-semibold text-white cursor-pointer"
               >
-                {submitting ? 'Generating Code...' : 'Send Verification Code'}
+                {submitting ? 'Sending Code...' : 'Send Verification Code'}
               </button>
             </form>
           ) : (

@@ -51,10 +51,13 @@ const EMPTY_BIKE_FORM = {
   estimatedPricePkr: 250000,
   priceLabel: 'Estimated Ex-Showroom (PKR)',
   priceUpdatedAt: new Date().toISOString().slice(0, 10),
+  sourceUrlsText: '',
+  sourceCheckedAt: '',
+  verifiedFieldsText: '',
   featuresText: 'Electric & Kick Start\nAlloy Rims',
   description: '',
   imageUrl: BUNDLED_IMAGE_OPTIONS[2].value,
-  availability: 'In Stock' as Motorcycle['availability'],
+  availability: 'Availability Unconfirmed' as Motorcycle['availability'],
   isFeatured: false,
   isLatestArrival: true,
 };
@@ -68,7 +71,7 @@ export function AdminDashboardPage() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
   const [signinAlerts, setSigninAlerts] = useState<SignInNotification[]>([]);
-  const [mailerStatus, setMailerStatus] = useState({ configured: false, provider: 'Not configured', recipient: 'cc7279950@gmail.com' });
+  const [mailerStatus, setMailerStatus] = useState({ configured: false, provider: 'Not configured', recipient: '' });
   const [testingEmail, setTestingEmail] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -190,6 +193,9 @@ export function AdminDashboardPage() {
       estimatedPricePkr: m.estimatedPricePkr,
       priceLabel: m.priceLabel,
       priceUpdatedAt: m.priceUpdatedAt,
+      sourceUrlsText: (m.sourceUrls ?? []).join('\n'),
+      sourceCheckedAt: m.sourceCheckedAt ?? '',
+      verifiedFieldsText: (m.verifiedFields ?? []).join(', '),
       featuresText: m.keyFeatures.join('\n'),
       description: m.description,
       imageUrl: m.imageUrl,
@@ -229,6 +235,9 @@ export function AdminDashboardPage() {
       estimatedPricePkr: Number(bikeForm.estimatedPricePkr),
       priceLabel: bikeForm.priceLabel,
       priceUpdatedAt: bikeForm.priceUpdatedAt,
+      sourceUrls: bikeForm.sourceUrlsText.split(/\r?\n/).map((url) => url.trim()).filter(Boolean),
+      sourceCheckedAt: bikeForm.sourceCheckedAt,
+      verifiedFields: bikeForm.verifiedFieldsText.split(',').map((field) => field.trim()).filter(Boolean),
       keyFeatures: bikeForm.featuresText.split('\n').map((f) => f.trim()).filter(Boolean),
       description: bikeForm.description,
       imageUrl: bikeForm.imageUrl,
@@ -659,6 +668,7 @@ export function AdminDashboardPage() {
                       <option value="In Stock">In Stock</option>
                       <option value="On Booking">On Booking</option>
                       <option value="Limited Import">Limited Import</option>
+                      <option value="Availability Unconfirmed">Availability Unconfirmed</option>
                     </select>
                   </div>
                   <div>
@@ -681,6 +691,39 @@ export function AdminDashboardPage() {
                     className="w-full p-3 rounded bg-[#0A0A0B] border border-zinc-700 text-sm text-white"
                   />
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_220px] gap-4">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Primary Source URLs (one HTTPS URL per line)</label>
+                    <textarea
+                      rows={3}
+                      value={bikeForm.sourceUrlsText}
+                      onChange={(e) => setBikeForm({ ...bikeForm, sourceUrlsText: e.target.value })}
+                      placeholder="https://manufacturer.example/model"
+                      className="w-full p-3 rounded bg-[#0A0A0B] border border-zinc-700 text-sm text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Sources Checked On</label>
+                    <input
+                      type="date"
+                      value={bikeForm.sourceCheckedAt}
+                      onChange={(e) => setBikeForm({ ...bikeForm, sourceCheckedAt: e.target.value })}
+                      className="w-full h-10 px-3 rounded bg-[#0A0A0B] border border-zinc-700 text-sm text-white"
+                    />
+                    <label className="block text-xs text-zinc-400 mt-3 mb-1">Source-Verified Fields</label>
+                    <input
+                      type="text"
+                      value={bikeForm.verifiedFieldsText}
+                      onChange={(e) => setBikeForm({ ...bikeForm, verifiedFieldsText: e.target.value })}
+                      placeholder="cc, transmission, horsepower"
+                      className="w-full h-10 px-3 rounded bg-[#0A0A0B] border border-zinc-700 text-sm text-white"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Only list supported field names, separated by commas. Use the manufacturer pages above to confirm each value.
+                </p>
 
                 <div className="flex flex-wrap items-center gap-6">
                   <label className="inline-flex items-center gap-2 text-xs text-zinc-200 cursor-pointer">

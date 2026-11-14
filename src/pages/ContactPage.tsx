@@ -12,7 +12,7 @@ export function ContactPage() {
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [city, setCity] = useState('Lahore');
+  const [city, setCity] = useState('');
   const [motorcycleName, setMotorcycleName] = useState('General Showroom Inquiry');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -24,7 +24,7 @@ export function ContactPage() {
       setCustomerName((p) => p || user.name);
       setPhone((p) => p || user.phone);
       setEmail((p) => p || user.email);
-      setCity((p) => p || user.city || 'Lahore');
+      setCity((p) => p || user.city || '');
     }
   }, [user]);
 
@@ -68,8 +68,8 @@ export function ContactPage() {
   return (
     <>
       <SEO
-        title="Contact CHAND MOTORS Lahore | WhatsApp 03217293026"
-        description="Contact CHAND MOTORS in Lahore, Pakistan for motorcycle prices, CBU bookings, inspections, and WhatsApp inquiries on 03217293026."
+        title="Contact CHAND MOTORS | WhatsApp 03217293026"
+        description="Contact CHAND MOTORS for motorcycle prices, availability, and booking inquiries on WhatsApp 03217293026."
         path="/contact"
       />
 
@@ -82,7 +82,7 @@ export function ContactPage() {
             Contact CHAND MOTORS
           </h1>
           <p className="text-sm text-zinc-400 mt-2 max-w-2xl">
-            Visit our Gulberg III showroom in Lahore, submit a booking request, or start a live WhatsApp conversation.
+            Send a booking request or contact CHAND MOTORS directly on WhatsApp.
           </p>
         </div>
 
@@ -92,16 +92,17 @@ export function ContactPage() {
               <h2 className="font-display text-2xl font-bold text-white">Showroom Details</h2>
 
               <div className="space-y-4 text-sm">
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-[#D91E2A] shrink-0 mt-0.5" aria-hidden="true" />
-                  <div>
-                    <p className="font-semibold text-white">Flagship Showroom</p>
-                    <p className="text-zinc-400">
-                      {siteContent?.showroomAddress || 'Plot 14-C, Main Boulevard, Gulberg III'},{' '}
-                      {siteContent?.showroomCity || 'Lahore, Pakistan'}
-                    </p>
+                {(siteContent?.showroomAddress || siteContent?.showroomCity) && (
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-5 h-5 text-[#D91E2A] shrink-0 mt-0.5" aria-hidden="true" />
+                    <div>
+                      <p className="font-semibold text-white">Showroom</p>
+                      <p className="text-zinc-400">
+                        {[siteContent.showroomAddress, siteContent.showroomCity].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex items-start gap-3">
                   <Phone className="w-5 h-5 text-[#D91E2A] shrink-0 mt-0.5" aria-hidden="true" />
@@ -111,15 +112,15 @@ export function ContactPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-[#D91E2A] shrink-0 mt-0.5" aria-hidden="true" />
-                  <div>
-                    <p className="font-semibold text-white">Operating Hours</p>
-                    <p className="text-zinc-400">
-                      {siteContent?.showroomHours || 'Mon – Sat · 10:00 AM – 8:00 PM PKT'}
-                    </p>
+                {siteContent?.showroomHours && (
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-[#D91E2A] shrink-0 mt-0.5" aria-hidden="true" />
+                    <div>
+                      <p className="font-semibold text-white">Operating Hours</p>
+                      <p className="text-zinc-400">{siteContent.showroomHours}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <a

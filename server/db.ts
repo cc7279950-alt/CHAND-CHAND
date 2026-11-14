@@ -40,7 +40,7 @@ db.exec(`
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     phone TEXT NOT NULL DEFAULT '',
-    city TEXT NOT NULL DEFAULT 'Lahore',
+    city TEXT NOT NULL DEFAULT '',
     role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'admin')),
     saved_bike_ids TEXT NOT NULL DEFAULT '[]',
     reset_token_hash TEXT,
@@ -89,6 +89,9 @@ db.exec(`
     estimated_price_pkr INTEGER NOT NULL,
     price_label TEXT NOT NULL,
     price_updated_at TEXT NOT NULL,
+    source_urls TEXT NOT NULL DEFAULT '[]',
+    source_checked_at TEXT NOT NULL DEFAULT '',
+    verified_fields TEXT NOT NULL DEFAULT '[]',
     key_features TEXT NOT NULL,
     description TEXT NOT NULL,
     image_url TEXT NOT NULL,
@@ -96,7 +99,7 @@ db.exec(`
     is_featured INTEGER NOT NULL DEFAULT 0,
     is_latest_arrival INTEGER NOT NULL DEFAULT 0,
     popularity_score INTEGER NOT NULL DEFAULT 50,
-    availability TEXT NOT NULL DEFAULT 'In Stock',
+    availability TEXT NOT NULL DEFAULT 'Availability Unconfirmed',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -132,7 +135,7 @@ db.exec(`
     email TEXT NOT NULL DEFAULT '',
     motorcycle_id INTEGER,
     motorcycle_name TEXT NOT NULL,
-    city TEXT NOT NULL DEFAULT 'Lahore',
+    city TEXT NOT NULL DEFAULT '',
     message TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'New' CHECK (status IN ('New', 'Contacted', 'Closed')),
     created_at TEXT NOT NULL
@@ -158,7 +161,23 @@ db.exec(`
     status_detail TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    id TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL
+  );
 `);
+
+const motorcycleColumns = db.prepare('PRAGMA table_info(motorcycles)').all() as { name: string }[];
+if (!motorcycleColumns.some((column) => column.name === 'source_urls')) {
+  db.exec("ALTER TABLE motorcycles ADD COLUMN source_urls TEXT NOT NULL DEFAULT '[]'");
+}
+if (!motorcycleColumns.some((column) => column.name === 'source_checked_at')) {
+  db.exec("ALTER TABLE motorcycles ADD COLUMN source_checked_at TEXT NOT NULL DEFAULT ''");
+}
+if (!motorcycleColumns.some((column) => column.name === 'verified_fields')) {
+  db.exec("ALTER TABLE motorcycles ADD COLUMN verified_fields TEXT NOT NULL DEFAULT '[]'");
+}
 
 export function seedDatabase(): void {
   const now = new Date().toISOString();
@@ -190,10 +209,10 @@ export function seedDatabase(): void {
         slug, name, brand, category, cc, engine_capacity_label, engine_type,
         horsepower, torque, transmission, fuel_tank_capacity, mileage, top_speed,
         braking_system, front_suspension, rear_suspension, dimensions, weight,
-        colors, estimated_price_pkr, price_label, price_updated_at, key_features,
-        description, image_url, gallery_urls, is_featured, is_latest_arrival,
-        popularity_score, availability, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        colors, estimated_price_pkr, price_label, price_updated_at, source_urls,
+        source_checked_at, verified_fields, key_features, description, image_url, gallery_urls,
+        is_featured, is_latest_arrival, popularity_score, availability, created_at, updated_at
+      ) VALUES (${Array(35).fill('?').join(', ')})
     `);
     for (const m of SEED_MOTORCYCLES) {
       stmt.run(
@@ -219,6 +238,9 @@ export function seedDatabase(): void {
         m.estimatedPricePkr,
         m.priceLabel,
         m.priceUpdatedAt,
+        JSON.stringify(m.sourceUrls ?? []),
+        m.sourceCheckedAt ?? '',
+        JSON.stringify(m.verifiedFields ?? []),
         JSON.stringify(m.keyFeatures),
         m.description,
         m.imageUrl,
@@ -231,6 +253,71 @@ export function seedDatabase(): void {
         now,
       );
     }
+  }
+
+  const normalizeUnconfirmedAvailability = db.prepare(
+    `UPDATE motorcycles
+     SET availability = 'Availability Unconfirmed'
+     WHERE slug = ? AND created_at = updated_at`,
+  );
+  const backfillMotorcycleSources = db.prepare(
+    `UPDATE motorcycles
+     SET source_urls = ?, source_checked_at = ?
+     WHERE slug = ? AND source_urls = '[]'`,
+  );
+  const updateUnmodifiedSourceMotorcycle = db.prepare(
+    `UPDATE motorcycles SET
+      name = ?, cc = ?, engine_capacity_label = ?, engine_type = ?, horsepower = ?, torque = ?,
+      transmission = ?, fuel_tank_capacity = ?, mileage = ?, top_speed = ?, braking_system = ?,
+      front_suspension = ?, rear_suspension = ?, dimensions = ?, weight = ?, colors = ?,
+      estimated_price_pkr = ?, price_label = ?, price_updated_at = ?, source_urls = ?,
+      source_checked_at = ?, verified_fields = ?, key_features = ?, description = ?, updated_at = ?
+     WHERE slug = ? AND created_at = updated_at`,
+  );
+  const sourceMigrationId = 'motorcycle-source-metadata-v2';
+  const sourceMigrationApplied = db.prepare('SELECT id FROM schema_migrations WHERE id = ?').get(sourceMigrationId);
+  if (!sourceMigrationApplied) {
+    for (const motorcycle of SEED_MOTORCYCLES) {
+      if (motorcycle.sourceUrls?.length) {
+        backfillMotorcycleSources.run(
+          JSON.stringify(motorcycle.sourceUrls),
+          motorcycle.sourceCheckedAt ?? '',
+          motorcycle.slug,
+        );
+        updateUnmodifiedSourceMotorcycle.run(
+          motorcycle.name,
+          motorcycle.cc,
+          motorcycle.engineCapacityLabel,
+          motorcycle.engineType,
+          motorcycle.horsepower,
+          motorcycle.torque,
+          motorcycle.transmission,
+          motorcycle.fuelTankCapacity,
+          motorcycle.mileage,
+          motorcycle.topSpeed,
+          motorcycle.brakingSystem,
+          motorcycle.frontSuspension,
+          motorcycle.rearSuspension,
+          motorcycle.dimensions,
+          motorcycle.weight,
+          JSON.stringify(motorcycle.colors),
+          motorcycle.estimatedPricePkr,
+          motorcycle.priceLabel,
+          motorcycle.priceUpdatedAt,
+          JSON.stringify(motorcycle.sourceUrls),
+          motorcycle.sourceCheckedAt ?? '',
+          JSON.stringify(motorcycle.verifiedFields ?? []),
+          JSON.stringify(motorcycle.keyFeatures),
+          motorcycle.description,
+          now,
+          motorcycle.slug,
+        );
+      }
+    }
+    db.prepare('INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)').run(sourceMigrationId, now);
+  }
+  for (const motorcycle of SEED_MOTORCYCLES) {
+    normalizeUnconfirmedAvailability.run(motorcycle.slug);
   }
 
   const guideCount = (db.prepare('SELECT COUNT(*) as c FROM guides').get() as { c: number }).c;
@@ -271,14 +358,34 @@ export function seedDatabase(): void {
     }
   }
 
-  const adminEmail = (process.env.ADMIN_BOOTSTRAP_EMAIL || 'admin@chandmotors.pk').toLowerCase();
-  const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD || 'ChandAdmin!2026';
-  const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
-  if (!existingAdmin) {
-    const hash = bcrypt.hashSync(adminPassword, 10);
-    db.prepare(
-      'INSERT INTO users (name, email, password_hash, phone, city, role, saved_bike_ids, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    ).run('CHAND Administrator', adminEmail, hash, '03217293026', 'Lahore', 'admin', '[]', now);
+  db.prepare(
+    `UPDATE site_content SET value = '' WHERE
+      (key = 'showroomAddress' AND value = 'Plot 14-C, Main Boulevard, Gulberg III') OR
+      (key = 'showroomCity' AND value = 'Lahore, Pakistan') OR
+      (key = 'showroomHours' AND value = 'Mon – Sat · 10:00 AM – 8:00 PM PKT')`,
+  ).run();
+
+  db.prepare(
+    `DELETE FROM reviews WHERE customer_name IN ('Hamza Tariq', 'Bilal Siddiqui', 'Usman Farooq')
+      AND verified_at IN ('2026-10-18', '2026-10-11', '2026-09-29')`,
+  ).run();
+
+  const adminEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+  const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+  if (Boolean(adminEmail) !== Boolean(adminPassword)) {
+    throw new Error('Set both ADMIN_BOOTSTRAP_EMAIL and ADMIN_BOOTSTRAP_PASSWORD to create an initial admin.');
+  }
+  if (adminPassword && adminPassword.length < 16) {
+    throw new Error('ADMIN_BOOTSTRAP_PASSWORD must be at least 16 characters.');
+  }
+  if (adminEmail && adminPassword) {
+    const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
+    if (!existingAdmin) {
+      const hash = bcrypt.hashSync(adminPassword, 12);
+      db.prepare(
+        'INSERT INTO users (name, email, password_hash, phone, city, role, saved_bike_ids, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      ).run('CHAND Administrator', adminEmail, hash, '', 'Pakistan', 'admin', '[]', now);
+    }
   }
 }
 
@@ -307,6 +414,9 @@ export function mapMotorcycleRow(row: Record<string, unknown>): Motorcycle {
     estimatedPricePkr: Number(row.estimated_price_pkr),
     priceLabel: String(row.price_label),
     priceUpdatedAt: String(row.price_updated_at),
+    sourceUrls: JSON.parse(String(row.source_urls || '[]')),
+    sourceCheckedAt: String(row.source_checked_at || ''),
+    verifiedFields: JSON.parse(String(row.verified_fields || '[]')),
     keyFeatures: JSON.parse(String(row.key_features || '[]')),
     description: String(row.description),
     imageUrl: String(row.image_url),
@@ -326,7 +436,7 @@ export function mapUserRow(row: Record<string, unknown>): UserProfile {
     name: String(row.name),
     email: String(row.email),
     phone: String(row.phone || ''),
-    city: String(row.city || 'Lahore'),
+    city: String(row.city || ''),
     role: String(row.role) as 'customer' | 'admin',
     savedBikeIds: JSON.parse(String(row.saved_bike_ids || '[]')),
     createdAt: String(row.created_at),
@@ -390,7 +500,7 @@ export function mapInquiryRow(row: Record<string, unknown>): Inquiry {
     email: String(row.email || ''),
     motorcycleId: row.motorcycle_id !== null && row.motorcycle_id !== undefined ? Number(row.motorcycle_id) : null,
     motorcycleName: String(row.motorcycle_name),
-    city: String(row.city || 'Lahore'),
+    city: String(row.city || ''),
     message: String(row.message),
     status: String(row.status) as Inquiry['status'],
     createdAt: String(row.created_at),

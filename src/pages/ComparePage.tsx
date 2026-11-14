@@ -13,24 +13,27 @@ export function ComparePage() {
     .filter((m): m is NonNullable<typeof m> => Boolean(m));
 
   const specRows = [
-    { label: 'Estimated Price', render: (m: (typeof selectedBikes)[0]) => formatPkr(m.estimatedPricePkr) },
+    { label: 'PKR Price / Estimate', render: (m: (typeof selectedBikes)[0]) => formatPkr(m.estimatedPricePkr) },
     { label: 'Price Status', render: (m: (typeof selectedBikes)[0]) => `${m.priceLabel} (${m.priceUpdatedAt})` },
     { label: 'Brand', render: (m: (typeof selectedBikes)[0]) => m.brand },
     { label: 'Category', render: (m: (typeof selectedBikes)[0]) => m.category },
     { label: 'Availability', render: (m: (typeof selectedBikes)[0]) => m.availability },
-    { label: 'Engine Capacity', render: (m: (typeof selectedBikes)[0]) => m.engineCapacityLabel },
-    { label: 'Engine Type', render: (m: (typeof selectedBikes)[0]) => m.engineType },
-    { label: 'Horsepower', render: (m: (typeof selectedBikes)[0]) => m.horsepower },
-    { label: 'Torque', render: (m: (typeof selectedBikes)[0]) => m.torque },
-    { label: 'Transmission', render: (m: (typeof selectedBikes)[0]) => m.transmission },
-    { label: 'Fuel / Battery', render: (m: (typeof selectedBikes)[0]) => m.fuelTankCapacity },
-    { label: 'Mileage / Range', render: (m: (typeof selectedBikes)[0]) => m.mileage },
-    { label: 'Top Speed', render: (m: (typeof selectedBikes)[0]) => m.topSpeed },
-    { label: 'Braking System', render: (m: (typeof selectedBikes)[0]) => m.brakingSystem },
-    { label: 'Front Suspension', render: (m: (typeof selectedBikes)[0]) => m.frontSuspension },
-    { label: 'Rear Suspension', render: (m: (typeof selectedBikes)[0]) => m.rearSuspension },
-    { label: 'Dimensions', render: (m: (typeof selectedBikes)[0]) => m.dimensions },
-    { label: 'Weight', render: (m: (typeof selectedBikes)[0]) => m.weight },
+    {
+      label: 'Engine Capacity',
+      render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('cc') ? m.engineCapacityLabel : 'Not verified',
+    },
+    { label: 'Engine Type', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('engineType') ? m.engineType : 'Not verified' },
+    { label: 'Horsepower', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('horsepower') ? m.horsepower : 'Not verified' },
+    { label: 'Torque', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('torque') ? m.torque : 'Not verified' },
+    { label: 'Transmission', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('transmission') ? m.transmission : 'Not verified' },
+    { label: 'Fuel / Battery', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('fuelTankCapacity') ? m.fuelTankCapacity : 'Not verified' },
+    { label: 'Mileage / Range', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('mileage') ? m.mileage : 'Not verified' },
+    { label: 'Top Speed', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('topSpeed') ? m.topSpeed : 'Not verified' },
+    { label: 'Braking System', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('brakingSystem') ? m.brakingSystem : 'Not verified' },
+    { label: 'Front Suspension', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('frontSuspension') ? m.frontSuspension : 'Not verified' },
+    { label: 'Rear Suspension', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('rearSuspension') ? m.rearSuspension : 'Not verified' },
+    { label: 'Dimensions', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('dimensions') ? m.dimensions : 'Not verified' },
+    { label: 'Weight', render: (m: (typeof selectedBikes)[0]) => m.verifiedFields?.includes('weight') ? m.weight : 'Not verified' },
   ];
 
   function handleAddSelect(slug: string) {
@@ -42,7 +45,7 @@ export function ComparePage() {
     <>
       <SEO
         title="Compare Motorcycles Side by Side | CHAND MOTORS Pakistan"
-        description="Compare up to three motorcycles in Pakistan across estimated PKR price, engine CC, horsepower, torque, braking, suspension, and fuel economy."
+        description="Compare up to three Pakistani-market motorcycle listings; technical values are shown only when supported by a recorded primary source."
         path="/compare"
       />
 
